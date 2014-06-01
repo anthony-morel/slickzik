@@ -72,10 +72,10 @@ class transcoder:
             reencode_algo[self.args.s](pathname, outfile)
         else:
             reencode_same_rate(pathname, outfile)
-            metadata = { k:self.filemeta[f][k] for k in
-                ('album','artist','date','tracknumber','title') if k in self.filemeta[f] }
-            logging.debug(metadata)
-            flacmeta.set_meta(metadata, outfile)
+        metadata = { k:self.filemeta[f][k] for k in
+            ('album','artist','date','tracknumber','title') if k in self.filemeta[f] }
+        logging.debug(metadata)
+        flacmeta.set_meta(metadata, outfile)
     
     def transcode(self):
         self._extract_metadata()
