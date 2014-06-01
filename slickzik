@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import argparse
+import logging
+import flac
+#import cue
+import sacd
+from metautils import get_output_dir
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+
+# Available filters and supporting transcoder classes
+
+transcoder_classes={
+    # 'pcm': [ cue.transcoder, flac.transcoder ],
+    'pcm': [ flac.transcoder ],
+    'sacd': [ sacd.transcoder ]
+}  
+
+# Parse arguments
+
+filters=transcoder_classes.keys()
+filters_dflt=','.join(filters)
+
+def filter_list(s):
+    l=s.split(',')
+    for v in l:
+        if not v in filters:
+            raise ValueError
+    return l        
+
+parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]),
+    description='Reformat music album files, associated metadata, and artwork.')
+parser.add_argument('rootdir',
+    help='directory where reformatted album folders are created')
+parser.add_argument('folder', nargs='+',
+    help='source folder to scan and process for album data')
+parser.add_argument('-a', action='store_true',
+    help='process artwork only (audio files are not created)')
+parser.add_argument('-f', type=filter_list, metavar=filters_dflt, default=filters_dflt,
+    help='only process folder with listed audio type')
+parser.add_argument('-g', type=int, default=0,
+    help='apply gain (in dB), e.g., -g -3')
+parser.add_argument('-r', action='store_true',
+    help='rename processed folder using prefix 0K (zero-K) for ok, 0C (zero-C) for no cover art')
+
+flac.add_options(parser)
+sacd.add_options(parser)
+args=parser.parse_args(sys.argv[1:])
+logging.debug('args='+str(args))
+
+# Create transcoder objects
+
+transcoder_list=[]
+for f in args.f:
+    for _class in transcoder_classes[f]:
+        t = _class(args)
+        logging.debug(str(t)+'='+str(vars(t)))
+        transcoder_list.append(t)
+logging.debug('transcoder_list='+str(transcoder_list))
+
+for folder in args.folder:
+    folder=os.path.realpath(folder)
+    logging.debug('folder='+folder)
+    for t in transcoder_list:
+        if t.probe(folder):
+            logging.info('In Folder '+folder)
+            outdirs = t.transcode()
+            logging.debug('outdirs='+str(outdirs))
+            break
+               
+
