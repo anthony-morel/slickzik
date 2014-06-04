@@ -3,11 +3,22 @@ import flacmeta
 import metautils
 import subprocess
 import logging
+    
+def add_dsp_downsampler(dsp, srate):
+    # Apply a short filter for higher sampling rate
+    # '95' at 48kHz gives passband of 0 .. 23 kHz
+    # '74' at 96kHz gives passband of 0 .. 35 kHz and less utrasonic echoes
+    dsp += ['rate','-b','95' if srate <= 48000 else '74',str(srate)]
 
-def add_options(parser):
-    parser.add_argument('-s', choices=('48k','96k'), default='192k', help='downsample to this maximum sample rate as required')
+def add_dsp_gain(dsp, gain):
+    dsp += ['gain', str(gain)]
 
-def reencode_same_rate(flacfile, outfile):
+def reencode_with_dsp(flacfile, outfile, dsp):
+    cmd = ['sox','-G',flacfile,'-C','8',outfile] + dsp
+    logging.debug(cmd)
+    subprocess.call(cmd)
+
+def reencode_no_dsp(flacfile, outfile):
     # flac -8 -s <input.flac> -o <output.flac> --> may fail with ERROR: input file has an ID3v2 tag
     # Use flac -c -d <input.flac> | flac -8 -s - -o <output.flac>
     cmd = ['flac','-c','-s','-d',flacfile]
@@ -17,23 +28,6 @@ def reencode_same_rate(flacfile, outfile):
     p2 = subprocess.Popen(cmd, stdin=p.stdout)
     logging.debug(cmd)
     p2.communicate()
-
-def reencode_96k(flacfile, outfile):
-    # Don't need wasteful ultrasonics (noise / DSD noise shaping, spurs)
-    # Keep bandwith = 0 .. 35 kHz using a short filter to prevent
-    # (ultrasonic) echoes
-    cmd = ['sox','-G',flacfile,'-C','8',outfile,'rate','-b','74','96000']
-    logging.debug(cmd)
-    subprocess.call(cmd)
-
-def reencode_48k(flacfile, outfile):
-    # Don't need wasteful ultrasonics (noise / DSD noise shaping, spurs)
-    # Keep bandwith = 0 .. 23 kHz
-    cmd = ['sox','-G',flacfile,'-C','8',outfile,'rate','-b','95','48000']
-    logging.debug(cmd)
-    subprocess.call(cmd)
-
-reencode_algo = { '48k':reencode_48k, '96k':reencode_96k, '192k':reencode_same_rate }
 
 class transcoder:
     def __init__(self, args=None):
@@ -68,10 +62,17 @@ class transcoder:
         logging.info('Processing\t'+f)
         pathname = os.path.join(self.directory,f)
         outfile = metautils.get_filename(outdir,self.filemeta[f])
-        if self.filemeta[f]['srate'] > int(self.args.s[:-1])*1000:
-            reencode_algo[self.args.s](pathname, outfile)
+        dsp = []
+        if self.filemeta[f]['channels'] > 2 and self.args.m == True:
+            raise NotImplementedError("Downmix of multi-channel flac is not implemented yet.")
+        if self.filemeta[f]['srate'] > self.args.s:
+            add_dsp_downsampler(dsp, self.args.s)
+        if self.args.g != 0:
+            add_dsp_gain(dsp, self.args.g)
+        if dsp:
+            reencode_with_dsp(pathname, outfile, dsp)
         else:
-            reencode_same_rate(pathname, outfile)
+            reencode_no_dsp(pathname, outfile)
         metadata = { k:self.filemeta[f][k] for k in
             ('album','artist','date','tracknumber','title') if k in self.filemeta[f] }
         logging.debug(metadata)
@@ -97,17 +98,44 @@ class transcoder:
 
 
 if __name__ == '__main__':
-    import argparse
-    from pprint import pprint
-    logging.basicConfig(level=logging.DEBUG)
-    parser = argparse.ArgumentParser(prog='PROG')
-    parser.add_argument('rootdir')
-    add_options(parser)
-    t=transcoder(parser.parse_args(['-s','48k','.']))
-    pprint(vars(t))
-    #t.args=parser.parse_args([])
-    pprint(t.probe('/home/amorel/Music/Seawind - (1980) Seawind'))
-    t.srate=176400
-    print(t.transcode())
+    logging.basicConfig(level=logging.INFO)
+    logging.info('Test 1')
+    class args:
+        s = 48000
+        rootdir = '.'
+        m = False
+        g = 0
+    t=transcoder(args)
+    f=t.probe('testset/cd')
+    assert f, 'check testset/cd folder for cd quality flac files'
+    d=t.transcode()
+    assert d, 'transcode did not create output folder'
+    logging.warn('DONE - Test 1. Verify '+str(d)+' matches testset/cd')
 
+    logging.info('Test 2')
+    f=t.probe('testset/hr')
+    assert f, 'check testset/hr folder for high-res flac files'
+    d=t.transcode()
+    assert d, 'transcode did not create output folder'
+    logging.warn('DONE - Test 2. Verify '+str(d)+' is testset/hr downsampled to 48kHz')
 
+    logging.info('Test 3')
+    f=t.probe('testset/mixed')
+    assert f, 'check testset/mixed for two+ different album files in same folder'
+    d=t.transcode()
+    assert len(d) >= 2, 'transcode did not create at least 2 output folders'
+    logging.warn('DONE - Test 3. Verify '+str(d)+' span all tracks in testset/mixed')
+
+    logging.info('Test 4')
+    class args:
+        s = 48000
+        rootdir = '.'
+        m = False
+        g = -6
+    t=transcoder(args)
+    f=t.probe('testset/cd')
+    assert f, 'check testset/cd folder for cd quality flac files'
+    d=t.transcode()
+    logging.warn('DONE - Test 4. Verify '+str(d)+' is testset/cd attenuated by 6 dB')
+
+    # TODO: test case of different albums in same folder
