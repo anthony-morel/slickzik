@@ -1,14 +1,13 @@
 import os
-import flacmeta
-import metautils
 import subprocess
 import logging
+import metautils
     
 def add_dsp_downsampler(dsp, srate):
     # Apply a short filter for higher sampling rate
     # '95' at 48kHz gives passband of 0 .. 23 kHz
     # '74' at 96kHz gives passband of 0 .. 35 kHz and less utrasonic echoes
-    dsp += ['rate','-b','95' if srate <= 48000 else '74',str(srate)]
+    dsp += ['rate','-v','-b','95' if srate <= 48000 else '74',str(srate)]
 
 def add_dsp_gain(dsp, gain):
     dsp += ['gain', str(gain)]
@@ -44,7 +43,7 @@ class transcoder:
         self.filemeta = {}
         album, artist, date = metautils.infer_from_dir(self.directory)
         for f in self.files:
-            metadata = flacmeta.get_meta(os.path.join(self.directory,f))
+            metadata = metautils.get_meta(os.path.join(self.directory,f))
             if 'album' not in metadata:
                 metadata['album'] = album
             if 'artist' not in metadata:
@@ -63,12 +62,12 @@ class transcoder:
         pathname = os.path.join(self.directory,f)
         outfile = metautils.get_filename(outdir,self.filemeta[f])
         dsp = []
-        if self.filemeta[f]['channels'] > 2 and self.args.m == True:
+        if self.filemeta[f]['channels'] > 2 and self.args.mix == True:
             raise NotImplementedError("Downmix of multi-channel flac is not implemented yet.")
-        if self.filemeta[f]['srate'] > self.args.s:
-            add_dsp_downsampler(dsp, self.args.s)
-        if self.args.g != 0:
-            add_dsp_gain(dsp, self.args.g)
+        if self.filemeta[f]['srate'] > self.args.srate:
+            add_dsp_downsampler(dsp, self.args.srate)
+        if self.args.gain != 0:
+            add_dsp_gain(dsp, self.args.gain)
         if dsp:
             reencode_with_dsp(pathname, outfile, dsp)
         else:
@@ -76,7 +75,7 @@ class transcoder:
         metadata = { k:self.filemeta[f][k] for k in
             ('album','artist','date','tracknumber','title') if k in self.filemeta[f] }
         logging.debug(metadata)
-        flacmeta.set_meta(metadata, outfile)
+        metautils.set_meta(metadata, outfile)
     
     def transcode(self):
         self._extract_metadata()
@@ -101,10 +100,10 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.info('Test 1')
     class args:
-        s = 48000
+        srate = 48000
         rootdir = '.'
-        m = False
-        g = 0
+        mix = False
+        gain = 0
     t=transcoder(args)
     f=t.probe('testset/cd')
     assert f, 'check testset/cd folder for cd quality flac files'
@@ -128,10 +127,10 @@ if __name__ == '__main__':
 
     logging.info('Test 4')
     class args:
-        s = 48000
+        srate = 48000
         rootdir = '.'
-        m = False
-        g = -6
+        mix = False
+        gain = -6
     t=transcoder(args)
     f=t.probe('testset/cd')
     assert f, 'check testset/cd folder for cd quality flac files'

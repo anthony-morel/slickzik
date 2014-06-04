@@ -56,9 +56,9 @@ parser.add_argument('folder', nargs='+',
     help='source folder to scan and process for album data')
 parser.add_argument('-f', type=filter_list, metavar=filters_dflt, default=filters_dflt,
     help='only process folder with listed audio type')
-parser.add_argument('-g', type=int, default=0,
+parser.add_argument('-g', '--gain', type=int, default=0,
     help='apply gain in dB, e.g., -g -3')
-parser.add_argument('-m', action='store_true',
+parser.add_argument('-m', '--mix', action='store_true',
     help='mix multichannel down to stereo')
 parser.add_argument('--front', type=int_or_off, metavar='{G,off}', default=0,
     help='front channels gain in dB or off')
@@ -70,7 +70,7 @@ parser.add_argument('--rear', type=int_or_off, metavar='{G,off}', default=0,
     help='rear channels gain in dB or off')
 parser.add_argument('-r', action='store_true',
     help='rename processed folder using prefix 0K (zero-K) for ok, 0C (zero-C) for no cover art')
-parser.add_argument('-s', type=srate_value, default='192k',
+parser.add_argument('-s', '--srate', type=srate_value, default='192k',
     help='max sample rate, e.g., -s 48k, -s 88200, ... files with higher rates are downsampled, others are untouched')
 
 args=parser.parse_args(sys.argv[1:])

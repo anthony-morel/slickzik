@@ -1,11 +1,19 @@
 import os
 import subprocess
 import logging
+import re
+import metautils
+import tempfile
 
 def sacd_extract(isofile):
-    cmd = ['sacd_extract','-i', isofile, '-P', '-2', '-p', '-c']
-    output = subprocess.check_output(cmd)
-    return output
+    # Extracts the sacd tracks into dff files
+    # This can take many minutes due to dst de-compression
+    tmpdir=tempfile.mkdtemp()
+    cmd = ['sacd_extract','-i', os.path.realpath(isofile), '-P', '-2', '-p', '-c']
+    logging.debug(cmd)
+    output = subprocess.check_output(cmd, cwd=tmpdir)
+    logging.debug(output)
+    return tmpdir, output
 
 class transcoder:
     def __init__(self, args=None):
@@ -28,20 +36,24 @@ class transcoder:
             self.metadata['album'] = match[0]
         else:
             self.metadata['album'] = album
-        match = re.findall( r'Artist:\s*(.*)', data, re.MULTILINE)
+        match = re.findall( r'Artist:\s*(.*)', log, re.MULTILINE)
         if match:
             self.metadata['artist'] = match[0]
         else:
             self.metadata['artist'] = artist
-        match = re.findall( r'19\d{2}|20\d{2}', data, re.MULTILINE)
+        match = re.findall( r'19\d{2}|20\d{2}', log, re.MULTILINE)
         if match:
             match.sort()
+            logging.debug('possible dates '+str(match))
             self.metadata['date'] = match[0]
         if date:
             if ('date' not in self.metadata) or (date < metadata['date']):
                 self.metadata['date'] = date
-        self.titles = re.findall( r'Title\[\d+\]:\s*(.*)', data, re.MULTILINE)
-        self.dff = re.findall( r'Processing \[(.*)\]', data, re.MULTILINE)
+        logging.debug('date '+self.metadata['date'])
+        self.titles = re.findall( r'Title\[\d+\]:\s*(.*)', log, re.MULTILINE)
+        logging.debug(self.titles)
+        self.dff = re.findall( r'Processing \[(.*)\]', log, re.MULTILINE)
+        logging.debug(self.dff)
 
     def _transcode_one(self, f, outdir):
         logging.info('Processing\t'+f)
@@ -52,45 +64,47 @@ class transcoder:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         logging.debug(cmd)
         cmd = ['sox','-t','raw','-e','float','-b','32','-r','2822400','-c','2','-',
-            '-b','24',outfile,'rate','-v','48k','gain','6']
+            '-b','24',outfile,'rate','-v',str(self.args.srate),'gain',str(self.args.gain)]
         p2 = subprocess.Popen(cmd, stdin=p.stdout)
         logging.debug(cmd)
         p2.communicate()
         logging.debug(self.metadata)
-        flacmeta.set_meta(self.metadata, outfile)
+        metautils.set_meta(self.metadata, outfile)
 
     def transcode(self):
         self.outdir = []
         for f in self.files:
             # Convert to DFF using sacd_extract() and parse info from log
-            log = sacd_extract(f)
+            tmpdir, log = sacd_extract(os.path.join(self.directory,f))
             self._extract_metadata(log)
             if self.dff:
                 outdir = metautils.get_output_dir(self.args.rootdir, self.metadata)
                 os.mkdir(outdir)
                 self.outdir.append(outdir)
-                for idx, dff in enumerate(self.dff):
+                for idx, f in enumerate(self.dff):
+                    dff=os.path.join(tmpdir,f)
+                    logging.debug(dff)
                     self.metadata['tracknumber'] = '%02d' % (idx+1)
                     self.metadata['title'] = self.titles[idx]
                     self._transcode_one(dff, outdir)
                     # remove intermediary file created by sacd_extract
                     os.remove(dff)
                 # remove intermediary directory created by sacd_extract
-                os.rmdir(os.path.dirname(files[0]))
+                os.rmdir(os.path.dirname(dff))
+                os.rmdir(tmpdir)
         return self.outdir
 
 if __name__ == '__main__':
-    import argparse
-    from pprint import pprint
     logging.basicConfig(level=logging.DEBUG)
-    parser = argparse.ArgumentParser(prog='PROG')
-    parser.add_argument('rootdir')
-    add_options(parser)
-    t=transcoder(parser.parse_args(['-s','48k','-g','6','.']))
-    pprint(vars(t))
-    #t.args=parser.parse_args([])
-    # TODO:
-    pprint(t.probe('/path/to/sacd.iso'))
-    print(t.transcode())
-
-
+    logging.info('Test 1')
+    class args:
+        srate = 48000
+        rootdir = '.'
+        mix = False
+        gain = 3
+    t=transcoder(args)
+    f=t.probe('testset/sacd')
+    assert f, 'check testset/sacd folder for sacd iso files'
+    d=t.transcode()
+    assert d, 'transcode did not create output folder(s)'
+    logging.warn('DONE - Test 1. Verify '+str(d)+' matches testset/sacd')
