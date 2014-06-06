@@ -5,94 +5,111 @@ import sys
 import argparse
 import logging
 import flac
-#import cue
+import cue
 import sacd
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 # Available filters and supporting transcoder classes
-
-transcoder_classes={
-    # 'pcm': [ cue.transcoder, flac.transcoder ],
-    'pcm': [ flac.transcoder ],
-    'sacd': [ sacd.transcoder ]
-}  
+transcoder_classes = {
+    'pcm': [cue.transcoder, flac.transcoder],
+    'sacd': [sacd.transcoder]
+}
 
 # Parse arguments
+filters = transcoder_classes.keys()
+filters_dflt = ','.join(filters)
 
-filters=transcoder_classes.keys()
-filters_dflt=','.join(filters)
 
 def filter_list(s):
-    l=s.split(',')
+    l = s.split(',')
     for v in l:
         if not v in filters:
             raise ValueError
-    return l        
+    return l
+
 
 def srate_value(s):
-    if s[-1]=='k':
-        srate = int(s[:-1])*1000
+    if s[-1] == 'k':
+        srate = int(s[:-1]) * 1000
     else:
         srate = int(s)
-    if not srate in (44100,48000,88200,96000,176400,192000):
+    if not srate in (44100, 48000, 88200, 96000, 176400, 192000):
         raise ValueError
     return srate
 
+
 def int_or_off(s):
-    if s.lower()=='off':
+    if s.lower() == 'off':
         return None
     else:
         return int(s)
 
 
-
-parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]),
-    description='Reformat music album folders into a consistent format:  1 flac file per track (cue + flac/wav/ape/wv and sacd-iso are transcoded) + cover.jpg + Artwork.zip',
-    epilog='defaults: process both sacd-iso and pcm (flac/wav/ape/wv), G = 0dB, S = 192k')
-parser.add_argument('rootdir',
+parser = argparse.ArgumentParser(
+    prog=os.path.basename(sys.argv[0]),
+    description='''Reformat music album folders into a consistent format:
+        1 flac file per track (cue + flac/wav/ape/wv and sacd-iso are
+        transcoded) + cover.jpg + Artwork.zip''',
+    epilog='''defaults: process both sacd-iso and pcm (flac/wav/ape/wv),
+        G = 0dB, S = 192k, CS=iso-8859-1''')
+parser.add_argument(
+    'rootdir',
     help='directory where reformatted album folders are created')
-parser.add_argument('folder', nargs='+',
+parser.add_argument(
+    'folder', nargs='+',
     help='source folder to scan and process for album data')
-parser.add_argument('-f', type=filter_list, metavar=filters_dflt, default=filters_dflt,
+parser.add_argument(
+    '-f', type=filter_list, metavar=filters_dflt, default=filters_dflt,
     help='only process folder with listed audio type')
-parser.add_argument('-g', '--gain', type=int, default=0,
+parser.add_argument(
+    '-g', '--gain', type=int, metavar='G', default=0,
     help='apply gain in dB, e.g., -g -3')
-parser.add_argument('-m', '--mix', action='store_true',
+parser.add_argument(
+    '-m', '--mix', action='store_true',
     help='mix multichannel down to stereo')
-parser.add_argument('--front', type=int_or_off, metavar='{G,off}', default=0,
+parser.add_argument(
+    '--front', type=int_or_off, metavar='{G,off}', default=0,
     help='front channels gain in dB or off')
-parser.add_argument('--ctr', type=int_or_off, metavar='{G,off}', default=0,
+parser.add_argument(
+    '--ctr', type=int_or_off, metavar='{G,off}', default=0,
     help='centre channel gain in dB or off')
-parser.add_argument('--sub', type=int_or_off, metavar='{G,off}', default=0,
+parser.add_argument(
+    '--sub', type=int_or_off, metavar='{G,off}', default=0,
     help='subwoofer chnl gain in dB or off')
-parser.add_argument('--rear', type=int_or_off, metavar='{G,off}', default=0,
+parser.add_argument(
+    '--rear', type=int_or_off, metavar='{G,off}', default=0,
     help='rear channels gain in dB or off')
-parser.add_argument('-r', action='store_true',
-    help='rename processed folder using prefix 0K (zero-K) for ok, 0C (zero-C) for no cover art')
-parser.add_argument('-s', '--srate', type=srate_value, default='192k',
-    help='max sample rate, e.g., -s 48k, -s 88200, ... files with higher rates are downsampled, others are untouched')
+parser.add_argument(
+    '-r', action='store_true',
+    help='''rename processed folder using prefix 0K (zero-K) for ok,
+        0C (zero-C) for no cover art''')
+parser.add_argument(
+    '-s', '--srate', type=srate_value, metavar='S', default='192k',
+    help='''max sample rate, e.g., -s 48k, -s 88200, ...
+        files with higher rates are downsampled, others are untouched''')
+parser.add_argument(
+    '--cuecharset', default='iso-8859-1', metavar='CS',
+    help='Character set used by cue sheets')
 
-args=parser.parse_args(sys.argv[1:])
-logging.debug('args='+str(args))
+args = parser.parse_args(sys.argv[1:])
+logging.debug('args=' + str(args))
 
 # Create transcoder objects
-transcoder_list=[]
+transcoder_list = []
 for f in args.f:
     for _class in transcoder_classes[f]:
         t = _class(args)
-        logging.debug(str(t)+'='+str(vars(t)))
+        logging.debug(str(t) + '=' + str(vars(t)))
         transcoder_list.append(t)
-logging.debug('transcoder_list='+str(transcoder_list))
+logging.debug('transcoder_list=' + str(transcoder_list))
 
 for folder in args.folder:
-    folder=os.path.realpath(folder)
-    logging.debug('folder='+folder)
+    folder = os.path.realpath(folder)
+    logging.debug('folder=' + folder)
     for t in transcoder_list:
         if t.probe(folder):
-            logging.info('In Folder '+folder)
+            logging.info('From ' + folder)
             outdirs = t.transcode()
-            logging.debug('outdirs='+str(outdirs))
+            logging.debug('outdirs=' + str(outdirs))
             break
-               
-
