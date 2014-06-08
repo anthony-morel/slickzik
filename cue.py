@@ -93,7 +93,7 @@ def cuesplit(sndfile, outdir, cuesheet, metadata):
 
 class transcoder:
 
-    def __init__(self, args=None):
+    def __init__(self, args={}):
         self.args = args
         # self.directory    -> input directory
         # self.files        -> list of (sound file, cue sheet) pairs
@@ -114,7 +114,7 @@ class transcoder:
         # Read all the cue sheet
         for cuefile in cuefiles:
             with open(os.path.join(self.directory, cuefile), 'r') as f:
-                cuesheet = f.read().decode(self.args.cuecharset)
+                cuesheet = f.read().decode(self.args['cuecharset'])
                 # Only retain cue sheets that point to exactly one file
                 matches = re.findall(
                     r'^FILE\s*"([^"]*)"', cuesheet, re.MULTILINE)
@@ -153,9 +153,9 @@ class transcoder:
             logging.info('Processing\t' + sndfile)
             logging.info('CUE sheet\t' + cuefile)
             with open(os.path.join(self.directory, cuefile), 'r') as f:
-                cuesheet = f.read().decode(self.args.cuecharset)
+                cuesheet = f.read().decode(self.args['cuecharset'])
             metadata = get_cue_metadata(cuesheet)
-            outdir = metautils.get_output_dir(self.args.rootdir, metadata)
+            outdir = metautils.get_output_dir(self.args['rootdir'], metadata)
             os.mkdir(outdir)
             logging.info('To ' + outdir)
             outdirs.append(outdir)
@@ -176,15 +176,10 @@ class transcoder:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     logging.info('Test 1')
 
-    class args:
-        srate = 48000
-        rootdir = '.'
-        mix = False
-        gain = 0
-        cuecharset = 'iso-8859-1'
+    args = {'srate':48000, 'rootdir':'.', 'mix':False, 'gain':0, 'cuecharset':'iso-8859-1'}
     t = transcoder(args)
     f = t.probe('testset/cue')
     assert f, 'check testset/cue folder for .cue + single large audio file (any format)'

@@ -36,7 +36,7 @@ def reencode_no_dsp(flacfile, outfile):
 
 class transcoder:
 
-    def __init__(self, args=None):
+    def __init__(self, args={}):
         self.args = args
         # self.directory    -> input directory
         # self.filemeta     -> file:metadata dictionary
@@ -71,13 +71,13 @@ class transcoder:
         outfile = metautils.get_filename(outdir, self.filemeta[f])
         logging.info('Creating\t' + os.path.basename(outfile))
         dsp = []
-        if self.filemeta[f]['channels'] > 2 and self.args.mix:
+        if self.filemeta[f]['channels'] > 2 and self.args['mix']:
             raise NotImplementedError(
                 'Downmix of multi-channel flac is not implemented yet.')
-        if self.filemeta[f]['srate'] > self.args.srate:
-            add_dsp_downsampler(dsp, self.args.srate)
-        if self.args.gain != 0:
-            add_dsp_gain(dsp, self.args.gain)
+        if self.filemeta[f]['srate'] > self.args['srate']:
+            add_dsp_downsampler(dsp, self.args['srate'])
+        if self.args['gain'] != 0:
+            add_dsp_gain(dsp, self.args['gain'])
         if dsp:
             reencode_with_dsp(pathname, outfile, dsp)
         else:
@@ -90,34 +90,30 @@ class transcoder:
 
     def transcode(self):
         self._extract_metadata()
-        outdir = []
+        outdirs = []
         pending = self.files
         while pending:
             next = []
             album = self.filemeta[pending[0]]['album']
             outdir = metautils.get_output_dir(
-                self.args.rootdir, self.filemeta[pending[0]])
+                self.args['rootdir'], self.filemeta[pending[0]])
             os.mkdir(outdir)
             logging.info('To ' + outdir)
-            outdir.append(outdir)
+            outdirs.append(outdir)
             for f in pending:
                 if self.filemeta[f]['album'] == album:
                     self._transcode_one(f, outdir)
                 else:
                     next.append(f)
             pending = next
-        return outdir
+        return outdirs
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     logging.info('Test 1')
 
-    class args:
-        srate = 48000
-        rootdir = '.'
-        mix = False
-        gain = 0
+    args = {'srate':48000, 'rootdir':'.', 'mix':False, 'gain':0}
     t = transcoder(args)
     f = t.probe('testset/cd')
     assert f, 'check testset/cd folder for cd quality flac files'
@@ -143,11 +139,7 @@ if __name__ == '__main__':
 
     logging.info('Test 4')
 
-    class args:
-        srate = 48000
-        rootdir = '.'
-        mix = False
-        gain = -6
+    args = {'srate':48000, 'rootdir':'.', 'mix':False, 'gain':-6}
     t = transcoder(args)
     f = t.probe('testset/cd')
     assert f, 'check testset/cd folder for cd quality flac files'

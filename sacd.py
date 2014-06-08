@@ -5,22 +5,21 @@ import re
 import tempfile
 import metautils
 
-
-def sacd_extract(isofile):
-    # Extracts the sacd tracks into dff files
-    # This can take many minutes due to dst de-compression
-    tmpdir = tempfile.mkdtemp()
-    cmd = ['sacd_extract', '-i',
-           os.path.realpath(isofile), '-P', '-2', '-p', '-c']
-    logging.debug(cmd)
-    output = subprocess.check_output(cmd, cwd=tmpdir)
-    logging.debug(output)
-    return tmpdir, output
-
+def get_dff_params(f):
+    cmd = ['dff2raw', '-p', f]
+    output = subprocess.check_output(cmd)
+    match = re.search(r'^numChannels\s*=\s*(\d+)', output, re.MULTILINE)
+    if match:
+        channels = int(match.group(1))
+    match = re.search(r'^sampleRate\s*=\s*(\d+)', output, re.MULTILINE)
+    if match:
+        srate = int(match.group(1))
+    logging.debug(str((channels, srate)))
+    return channels, srate
 
 class transcoder:
 
-    def __init__(self, args=None):
+    def __init__(self, args={}):
         self.args = args
         # self.directory    -> input directory
         # self.dff          -> Intermediary DFF files
@@ -63,19 +62,38 @@ class transcoder:
         self.dff = re.findall(r'Processing \[(.*)\]', log, re.MULTILINE)
         logging.debug(self.dff)
 
+    def _sacd_extract(self, isofile):
+        # Extracts the sacd tracks into dff files
+        # This can take many minutes due to dst de-compression
+        tmpdir = tempfile.mkdtemp()
+        cmd = ['sacd_extract', '-i', os.path.realpath(isofile),
+               '-P', '-p', '-c', '-t', '1']
+        if self.args['mix'] or self.args['mch']:
+            cmd += ['-m']
+        logging.debug(cmd)
+        output = subprocess.check_output(cmd, cwd=tmpdir)
+        logging.debug(output)
+        return tmpdir, output
+
     def _transcode_one(self, f, outdir):
         outfile = metautils.get_filename(outdir, self.metadata)
         logging.info('Creating\t' + os.path.basename(outfile))
-        # dff2raw -i <file.dff> | sox -t raw -e float -b 32 -r 2822400 -c 2 -
+        channels, srate = get_dff_params(f)
+        # dff2raw <file.dff> | sox -t raw -e float -b 32 -r 2822400 -c 2 -
         # -b 24 <file.flac> rate -v 48000 gain 6 stats
-        cmd = ['dff2raw', '-i', f]
+        cmd = ['dff2raw', f]
+        if self.args['mix'] and (channels == 5 or channels == 6):
+            channels = 2
+            cmd += ['-m'] + \
+                   ['-'+k[0]+str(self.args[k])
+                    for k in ('front', 'ctr', 'rear', 'sub')]
+        logging.debug(cmd)
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        cmd = ['sox', '-t', 'raw', '-e', 'float', '-b', '32', '-r', str(srate),
+               '-c', str(channels), '-', '-b', '24', outfile,
+               'rate', '-v', str(self.args['srate']), 'gain', str(self.args['gain'])]
         logging.debug(cmd)
-        cmd = ['sox', '-t', 'raw', '-e', 'float', '-b', '32', '-r', '2822400',
-               '-c', '2', '-', '-b', '24', outfile,
-               'rate', '-v', str(self.args.srate), 'gain', str(self.args.gain)]
         p2 = subprocess.Popen(cmd, stdin=p.stdout)
-        logging.debug(cmd)
         p2.communicate()
         logging.debug(self.metadata)
         metautils.set_meta(self.metadata, outfile)
@@ -84,11 +102,11 @@ class transcoder:
         self.outdir = []
         for f in self.files:
             # Convert to DFF using sacd_extract() and parse info from log
-            tmpdir, log = sacd_extract(os.path.join(self.directory, f))
+            tmpdir, log = self._sacd_extract(os.path.join(self.directory, f))
             self._extract_metadata(log)
             if self.dff:
                 outdir = metautils.get_output_dir(
-                    self.args.rootdir, self.metadata)
+                    self.args['rootdir'], self.metadata)
                 os.mkdir(outdir)
                 logging.info('To ' + outdir)
                 self.outdir.append(outdir)
@@ -109,11 +127,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     logging.info('Test 1')
 
-    class args:
-        srate = 48000
-        rootdir = '.'
-        mix = False
-        gain = 3
+    args = {'srate':48000, 'rootdir':'.', 'mix':False, 'mch':True, 'gain':3}
     t = transcoder(args)
     f = t.probe('testset/sacd')
     assert f, 'check testset/sacd folder for sacd iso files'

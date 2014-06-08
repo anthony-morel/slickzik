@@ -10,7 +10,7 @@ import cue
 import sacd
 import artwork
 
-logging.basicConfig(level=logging.INFO, format='%(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 
 # Available filters and supporting transcoder classes
 transcoder_classes = {
@@ -33,7 +33,7 @@ def filter_list(s):
 
 def srate_value(s):
     if s[-1] == 'k':
-        srate = int(s[:-1]) * 1000
+        srate = int(float(s[:-1]) * 1000)
     else:
         srate = int(s)
     if not srate in (44100, 48000, 88200, 96000, 176400, 192000):
@@ -41,11 +41,11 @@ def srate_value(s):
     return srate
 
 
-def int_or_off(s):
+def float_or_off(s):
     if s.lower() == 'off':
-        return None
+        return 'off'
     else:
-        return int(s)
+        return float(s)
 
 
 parser = argparse.ArgumentParser(
@@ -74,17 +74,20 @@ parser.add_argument(
     '-m', '--mix', action='store_true',
     help='mix multichannel down to stereo')
 parser.add_argument(
-    '--front', type=int_or_off, metavar='{G,off}', default=0,
+    '--front', type=float_or_off, metavar='{G,off}', default=0,
     help='front channels gain in dB or off')
 parser.add_argument(
-    '--ctr', type=int_or_off, metavar='{G,off}', default=0,
+    '--ctr', type=float_or_off, metavar='{G,off}', default=0,
     help='centre channel gain in dB or off')
 parser.add_argument(
-    '--sub', type=int_or_off, metavar='{G,off}', default=0,
+    '--rear', type=float_or_off, metavar='{G,off}', default=0,
+    help='rear channels gain in dB or off')
+parser.add_argument(
+    '--sub', type=float_or_off, metavar='{G,off}', default=0,
     help='subwoofer chnl gain in dB or off')
 parser.add_argument(
-    '--rear', type=int_or_off, metavar='{G,off}', default=0,
-    help='rear channels gain in dB or off')
+    '--mch', action='store_true',
+    help='select multichannel track on sacd (implied with -m)')
 parser.add_argument(
     '-r', '--rename', action='store_true',
     help='''rename processed folder using prefix 0K (zero-K) for ok,
@@ -97,21 +100,30 @@ parser.add_argument(
     '--cuecharset', default='iso-8859-1', metavar='CS',
     help='Character set used by cue sheets')
 
-args = parser.parse_args(sys.argv[1:])
+args = vars(parser.parse_args(sys.argv[1:]))
+
+if args['mix']:
+    # normalise channel gain so that <= 0 dB (no clipping)
+    key = ('front', 'ctr', 'rear', 'sub')
+    max_gain = max([args[k] for k in key if args[k] != 'off'])
+    for k in key:
+        if args[k] != 'off':
+            args[k] -= max_gain
+    args['gain'] += max_gain
+
 logging.debug('args=' + str(args))
 
 # Create transcoder objects
 transcoder_list = []
-for f in args.f:
-    for _class in transcoder_classes[f]:
-        t = _class(args)
-        logging.debug(str(t) + '=' + str(vars(t)))
+for f in args['f']:
+    for class_ in transcoder_classes[f]:
+        t = class_(args)
         transcoder_list.append(t)
 logging.debug('transcoder_list=' + str(transcoder_list))
 
 art = artwork.coverart_processor()
 
-for folder in args.folder:
+for folder in args['folder']:
     folder = os.path.realpath(folder)
     logging.debug('folder=' + folder)
     for t in transcoder_list:
@@ -131,11 +143,11 @@ for folder in args.folder:
             for outdir in outdirs[1:]:
                 art.probe(outdirs[0])
                 art.extract_to(outdir)
-            if args.display:
+            if args['display']:
                 cmd = ['display', cover]
                 p = subprocess.Popen(cmd)
     # Optionally rename the folder to keep track of progress and status
-    if args.rename:
+    if args['rename']:
         root, d = os.path.split(folder)
         d = '0K-'+d if cover else '0C-'+d
         os.rename(folder, os.path.join(root,d))
