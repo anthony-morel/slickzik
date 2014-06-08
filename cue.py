@@ -95,7 +95,8 @@ class transcoder:
 
     def __init__(self, args=None):
         self.args = args
-        self.directory = ''
+        # self.directory    -> input directory
+        # self.files        -> list of (sound file, cue sheet) pairs
 
     def probe(self, directory):
         self.directory = directory
@@ -147,7 +148,7 @@ class transcoder:
         return self.files
 
     def transcode(self):
-        self.outdir = []
+        outdirs = []
         for sndfile, cuefile in self.files:
             logging.info('Processing\t' + sndfile)
             logging.info('CUE sheet\t' + cuefile)
@@ -157,7 +158,7 @@ class transcoder:
             outdir = metautils.get_output_dir(self.args.rootdir, metadata)
             os.mkdir(outdir)
             logging.info('To ' + outdir)
-            self.outdir.append(outdir)
+            outdirs.append(outdir)
             if sndfile.lower().endswith(('.wv', '.ape')):
                 fd, flacfile = tempfile.mkstemp('.flac')
                 # creating a file object from low-level handle fd
@@ -171,7 +172,7 @@ class transcoder:
             else:
                 flacfile = os.path.join(self.directory, sndfile)
                 cuesplit(flacfile, outdir, cuesheet, metadata)
-        return self.outdir
+        return outdirs
 
 
 if __name__ == '__main__':

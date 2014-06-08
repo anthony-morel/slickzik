@@ -22,10 +22,10 @@ class transcoder:
 
     def __init__(self, args=None):
         self.args = args
-        self.directory = ''
-        self.dff = []       # Intermediary DFF files
-        self.metadata = {}  # Common metadata (no track titles and numbers)
-        self.titles = []    # Track titles (implicit numbering)
+        # self.directory    -> input directory
+        # self.dff          -> Intermediary DFF files
+        # self.metadata     -> Common metadata (no track titles and numbers)
+        # self.titles       -> Track titles (implicit numbering)
 
     def probe(self, directory):
         self.directory = directory

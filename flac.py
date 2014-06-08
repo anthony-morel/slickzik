@@ -38,8 +38,8 @@ class transcoder:
 
     def __init__(self, args=None):
         self.args = args
-        self.directory = ''
-        self.filemeta = {}
+        # self.directory    -> input directory
+        # self.filemeta     -> file:metadata dictionary
 
     def probe(self, directory):
         self.directory = directory
@@ -90,7 +90,7 @@ class transcoder:
 
     def transcode(self):
         self._extract_metadata()
-        self.outdir = []
+        outdir = []
         pending = self.files
         while pending:
             next = []
@@ -99,14 +99,14 @@ class transcoder:
                 self.args.rootdir, self.filemeta[pending[0]])
             os.mkdir(outdir)
             logging.info('To ' + outdir)
-            self.outdir.append(outdir)
+            outdir.append(outdir)
             for f in pending:
                 if self.filemeta[f]['album'] == album:
                     self._transcode_one(f, outdir)
                 else:
                     next.append(f)
             pending = next
-        return self.outdir
+        return outdir
 
 
 if __name__ == '__main__':

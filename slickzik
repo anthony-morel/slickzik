@@ -4,9 +4,11 @@ import os
 import sys
 import argparse
 import logging
+import subprocess
 import flac
 import cue
 import sacd
+import artwork
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
@@ -60,6 +62,9 @@ parser.add_argument(
     'folder', nargs='+',
     help='source folder to scan and process for album data')
 parser.add_argument(
+    '-d', '--display', action='store_true',
+    help='display covert art for processed albums')
+parser.add_argument(
     '-f', type=filter_list, metavar=filters_dflt, default=filters_dflt,
     help='only process folder with listed audio type')
 parser.add_argument(
@@ -81,7 +86,7 @@ parser.add_argument(
     '--rear', type=int_or_off, metavar='{G,off}', default=0,
     help='rear channels gain in dB or off')
 parser.add_argument(
-    '-r', action='store_true',
+    '-r', '--rename', action='store_true',
     help='''rename processed folder using prefix 0K (zero-K) for ok,
         0C (zero-C) for no cover art''')
 parser.add_argument(
@@ -104,6 +109,8 @@ for f in args.f:
         transcoder_list.append(t)
 logging.debug('transcoder_list=' + str(transcoder_list))
 
+art = artwork.coverart_processor()
+
 for folder in args.folder:
     folder = os.path.realpath(folder)
     logging.debug('folder=' + folder)
@@ -113,3 +120,22 @@ for folder in args.folder:
             outdirs = t.transcode()
             logging.debug('outdirs=' + str(outdirs))
             break
+    else:
+        continue
+    # Processed audio.  Now, takes care of artwork
+    cover = None
+    if art.probe(folder):
+        cover = art.extract_to(outdirs[0])
+        if cover:
+            # duplicate artwork in case of multiple album folder created
+            for outdir in outdirs[1:]:
+                art.probe(outdirs[0])
+                art.extract_to(outdir)
+            if args.display:
+                cmd = ['display', cover]
+                p = subprocess.Popen(cmd)
+    # Optionally rename the folder to keep track of progress and status
+    if args.rename:
+        root, d = os.path.split(folder)
+        d = '0K-'+d if cover else '0C-'+d
+        os.rename(folder, os.path.join(root,d))
