@@ -40,12 +40,12 @@ class sacdtranscoder:
         album, artist, date = infer_from_dir(self.directory)
         match = re.findall(r'Title:\s*(.*)', log, re.MULTILINE)
         if match:
-            self.metadata['album'] = match[0]
+            self.metadata['album'] = dontshout(match[0])
         else:
             self.metadata['album'] = album
         match = re.findall(r'Artist:\s*(.*)', log, re.MULTILINE)
         if match:
-            self.metadata['artist'] = match[0]
+            self.metadata['artist'] = dontshout(match[0])
         else:
             self.metadata['artist'] = artist
         match = re.findall(r'19\d{2}|20\d{2}', log, re.MULTILINE)
@@ -54,10 +54,11 @@ class sacdtranscoder:
             logging.debug('possible dates ' + str(match))
             self.metadata['date'] = match[0]
         if date:
-            if ('date' not in self.metadata) or (date < metadata['date']):
+            if ('date' not in self.metadata) or (date < self.metadata['date']):
                 self.metadata['date'] = date
         logging.debug('date ' + self.metadata['date'])
         self.titles = re.findall(r'Title\[\d+\]:\s*(.*)', log, re.MULTILINE)
+        self.titles = dontshout('\n'.join(self.titles)).split('\n')
         logging.debug(self.titles)
         self.dff = re.findall(r'Processing \[(.*)\]', log, re.MULTILINE)
         logging.debug(self.dff)
@@ -67,7 +68,9 @@ class sacdtranscoder:
         # This can take many minutes due to dst de-compression
         tmpdir = tempfile.mkdtemp()
         cmd = ['sacd_extract', '-i', os.path.realpath(isofile),
-               '-P', '-p', '-c', '-t', '1']
+               '-P', '-p', '-c']
+        if self.args['t']:
+            cmd += ['-t',','.join(self.args['t'])]
         if self.args['mix'] or self.args['mch']:
             cmd += ['-m']
         logging.debug(cmd)

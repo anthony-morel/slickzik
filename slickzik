@@ -31,6 +31,13 @@ def filter_list(s):
     return l
 
 
+def track_list(s):
+    l = s.split(',')
+    for v in l:
+        int(v)
+    return l
+
+
 def srate_value(s):
     if s[-1] == 'k':
         srate = int(float(s[:-1]) * 1000)
@@ -96,6 +103,9 @@ parser.add_argument(
     '-s', '--srate', type=srate_value, metavar='S', default='192k',
     help='''max sample rate, e.g., -s 48k, -s 88200, ...
         files with higher rates are downsampled, others are untouched''')
+parser.add_argument(
+    '-t', type=track_list, metavar='{t1,t2,..}',
+    help='convert only the specified tracks, e.g., -t 1,5,13')
 parser.add_argument(
     '--cuecharset', default='iso-8859-1', metavar='CS',
     help='Character set used by cue sheets')

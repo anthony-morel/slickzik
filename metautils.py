@@ -2,6 +2,19 @@ import os
 import subprocess
 import re
 
+
+def dontshout(s):
+    s = s.strip()
+    if len(s) <= 4:
+        # INXS ABC
+        return s
+    else:
+        # only do title case if no lower cases are detected
+        if re.search(r'[a-z]', s):
+            return s
+        else:
+            return s.title()
+
 # utility functions to infer metadata from path name
 
 
@@ -88,7 +101,7 @@ def get_flac_metadata(data):
     match = re.search(
         r'^\s*album\s*=\s*(.*)', data, re.MULTILINE | re.IGNORECASE)
     if match:
-        albumlong = match.group(1).rstrip()
+        albumlong = dontshout(match.group(1))
         match = re.match(r'([^[]+?)\s*\[(.*)\]', albumlong)
         if match:
             metadata['album'] = match.group(1)
@@ -99,7 +112,7 @@ def get_flac_metadata(data):
     match = re.search(
         r'^\s*artist\s*=\s*(.*)', data, re.MULTILINE | re.IGNORECASE)
     if match:
-        metadata['artist'] = match.group(1)
+        metadata['artist'] = dontshout(match.group(1))
 
     match = re.search(
         r'^\s*date\s*=\s*(19\d{2}|20\d{2})', data,
@@ -115,7 +128,7 @@ def get_flac_metadata(data):
     match = re.search(
         r'^\s*title\s*=\s*(.*)', data, re.MULTILINE | re.IGNORECASE)
     if match:
-        metadata['title'] = match.group(1)
+        metadata['title'] = dontshout(match.group(1))
 
     return metadata
 

@@ -18,7 +18,7 @@ def get_cue_metadata(cuesheet):
     metadata = {}
     match = re.search(r'TITLE\s*"([^"]*)"', cuesheet, re.MULTILINE)
     if match:
-        albumlong = match.group(1).rstrip()
+        albumlong = dontshout(match.group(1))
         match = re.match(r'([^[]+?)\s*\[(.*)\]', albumlong)
         if match:
             metadata['album'] = match.group(1)
@@ -27,7 +27,7 @@ def get_cue_metadata(cuesheet):
             metadata['album'] = albumlong
     match = re.search(r'PERFORMER\s*"([^"]*)"', cuesheet, re.MULTILINE)
     if match:
-        metadata['artist'] = match.group(1)
+        metadata['artist'] = dontshout(match.group(1))
     match = re.search(r'DATE\s*(19\d{2}|20\d{2})', cuesheet, re.MULTILINE)
     if match:
         metadata['date'] = match.group(1)
