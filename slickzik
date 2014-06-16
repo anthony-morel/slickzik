@@ -5,17 +5,17 @@ import sys
 import argparse
 import logging
 import subprocess
-import flac
-import cue
-import sacd
-import artwork
+from flac import *
+from cue import *
+from sacd import *
+from artwork import *
 
-logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 # Available filters and supporting transcoder classes
 transcoder_classes = {
-    'pcm': [cue.transcoder, flac.transcoder],
-    'sacd': [sacd.transcoder]
+    'pcm': [cuetranscoder, flactranscoder],
+    'sacd': [sacdtranscoder]
 }
 
 # Parse arguments
@@ -121,7 +121,7 @@ for f in args['f']:
         transcoder_list.append(t)
 logging.debug('transcoder_list=' + str(transcoder_list))
 
-art = artwork.coverart_processor()
+art = coverart_processor()
 
 for folder in args['folder']:
     folder = os.path.realpath(folder)

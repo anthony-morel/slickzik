@@ -6,7 +6,7 @@ import tempfile
 import sys
 reload(sys)
 sys.setdefaultencoding('utf8')
-import metautils
+from metautils import *
 
 
 def convert_to_flac(sndfile, flacfile):
@@ -85,13 +85,13 @@ def cuesplit(sndfile, outdir, cuesheet, metadata):
                 os.remove(pathname)
             else:
                 logging.info('Creating\t' + f)
-                metadata['tracknumber'] = metautils.infer_tracknumber(f)
-                metadata['title'] = metautils.infer_title(f)
-                metautils.set_meta(metadata, pathname)
+                metadata['tracknumber'] = infer_tracknumber(f)
+                metadata['title'] = infer_title(f)
+                set_meta(metadata, pathname)
     return outdir
 
 
-class transcoder:
+class cuetranscoder:
 
     def __init__(self, args={}):
         self.args = args
@@ -155,7 +155,7 @@ class transcoder:
             with open(os.path.join(self.directory, cuefile), 'r') as f:
                 cuesheet = f.read().decode(self.args['cuecharset'])
             metadata = get_cue_metadata(cuesheet)
-            outdir = metautils.get_output_dir(self.args['rootdir'], metadata)
+            outdir = get_output_dir(self.args['rootdir'], metadata)
             os.mkdir(outdir)
             logging.info('To ' + outdir)
             outdirs.append(outdir)

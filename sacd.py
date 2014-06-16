@@ -3,7 +3,7 @@ import subprocess
 import logging
 import re
 import tempfile
-import metautils
+from metautils import *
 
 def get_dff_params(f):
     cmd = ['dff2raw', '-p', f]
@@ -17,7 +17,7 @@ def get_dff_params(f):
     logging.debug(str((channels, srate)))
     return channels, srate
 
-class transcoder:
+class sacdtranscoder:
 
     def __init__(self, args={}):
         self.args = args
@@ -37,7 +37,7 @@ class transcoder:
 
     def _extract_metadata(self, log):
         self.metadata = {}
-        album, artist, date = metautils.infer_from_dir(self.directory)
+        album, artist, date = infer_from_dir(self.directory)
         match = re.findall(r'Title:\s*(.*)', log, re.MULTILINE)
         if match:
             self.metadata['album'] = match[0]
@@ -76,7 +76,7 @@ class transcoder:
         return tmpdir, output
 
     def _transcode_one(self, f, outdir):
-        outfile = metautils.get_filename(outdir, self.metadata)
+        outfile = get_filename(outdir, self.metadata)
         logging.info('Creating\t' + os.path.basename(outfile))
         channels, srate = get_dff_params(f)
         # dff2raw <file.dff> | sox -t raw -e float -b 32 -r 2822400 -c 2 -
@@ -96,7 +96,7 @@ class transcoder:
         p2 = subprocess.Popen(cmd, stdin=p.stdout)
         p2.communicate()
         logging.debug(self.metadata)
-        metautils.set_meta(self.metadata, outfile)
+        set_meta(self.metadata, outfile)
 
     def transcode(self):
         self.outdir = []
@@ -105,7 +105,7 @@ class transcoder:
             tmpdir, log = self._sacd_extract(os.path.join(self.directory, f))
             self._extract_metadata(log)
             if self.dff:
-                outdir = metautils.get_output_dir(
+                outdir = get_output_dir(
                     self.args['rootdir'], self.metadata)
                 os.mkdir(outdir)
                 logging.info('To ' + outdir)

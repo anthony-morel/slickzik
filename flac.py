@@ -1,7 +1,7 @@
 import os
 import subprocess
 import logging
-import metautils
+from metautils import *
 
 
 def add_dsp_downsampler(dsp, srate):
@@ -34,7 +34,7 @@ def reencode_no_dsp(flacfile, outfile):
     p2.communicate()
 
 
-class transcoder:
+class flactranscoder:
 
     def __init__(self, args={}):
         self.args = args
@@ -50,9 +50,9 @@ class transcoder:
 
     def _extract_metadata(self):
         self.filemeta = {}
-        album, artist, date = metautils.infer_from_dir(self.directory)
+        album, artist, date = infer_from_dir(self.directory)
         for f in self.files:
-            metadata = metautils.get_meta(os.path.join(self.directory, f))
+            metadata = get_meta(os.path.join(self.directory, f))
             if 'album' not in metadata:
                 metadata['album'] = album
             if 'artist' not in metadata:
@@ -61,14 +61,14 @@ class transcoder:
                 if ('date' not in metadata) or (date < metadata['date']):
                     metadata['date'] = date
             if 'tracknumber' not in metadata:
-                metadata['tracknumber'] = metautils.infer_tracknumber(f)
+                metadata['tracknumber'] = infer_tracknumber(f)
             if 'title' not in metadata:
-                metadata['title'] = metautils.infer_title(f)
+                metadata['title'] = infer_title(f)
             self.filemeta[f] = metadata
 
     def _transcode_one(self, f, outdir):
         pathname = os.path.join(self.directory, f)
-        outfile = metautils.get_filename(outdir, self.filemeta[f])
+        outfile = get_filename(outdir, self.filemeta[f])
         logging.info('Creating\t' + os.path.basename(outfile))
         dsp = []
         if self.filemeta[f]['channels'] > 2 and self.args['mix']:
@@ -86,7 +86,7 @@ class transcoder:
                     ('album', 'artist', 'date', 'tracknumber', 'title')
                     if k in self.filemeta[f]}
         logging.debug(metadata)
-        metautils.set_meta(metadata, outfile)
+        set_meta(metadata, outfile)
 
     def transcode(self):
         self._extract_metadata()
@@ -95,7 +95,7 @@ class transcoder:
         while pending:
             next = []
             album = self.filemeta[pending[0]]['album']
-            outdir = metautils.get_output_dir(
+            outdir = get_output_dir(
                 self.args['rootdir'], self.filemeta[pending[0]])
             os.mkdir(outdir)
             logging.info('To ' + outdir)
