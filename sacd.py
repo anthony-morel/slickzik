@@ -28,11 +28,26 @@ class sacdtranscoder:
 
     def probe(self, directory):
         self.directory = directory
-        self.files = sorted(
+        files = sorted(
             [name for name in os.listdir(directory)
                 if name.lower().endswith('.iso')])
-        # TODO: call SACD extract to check that it is really an iso file of
-        # SACD
+        self.files = []
+        for isofile in files:
+            cmd = ['sacd_extract', '-i', os.path.realpath(isofile), '-P']
+            logging.debug(cmd)
+            output = subprocess.check_output(cmd)
+            logging.debug(output)
+            match = re.findall(r'Speaker config: (\d) Channel', output, re.MULTILINE)
+            if self.args['mix'] or self.args['mch']:
+                # Require a multichannel track
+                if not ('5' in match or '6' in match):
+                    logging.info(isofile + ' has no multichannel track')
+                    continue
+            elif not '2' in match:
+                # Not a SACD iso: SACD must have a stereo track
+                logging.info(isofile + ' is not a SACD')
+                continue
+            self.files.append(isofile)
         return self.files
 
     def _extract_metadata(self, log):
