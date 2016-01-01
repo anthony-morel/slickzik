@@ -112,6 +112,10 @@ class sacdtranscoder:
         cmd = ['sox', '-t', 'raw', '-e', 'float', '-b', '32', '-r', '2822400',
                '-c', str(channels), '-', '-b', '24', outfile,
                'rate', '-v', str(self.args['srate']), 'gain', str(self.args['gain'])]
+        # Don't generate flac with odd-channel count (ALSA no more supports)
+        if self.channels == 5:
+            # flac channel order: 1=L, 2=R, 3=C, 4=null LFE, 5/6 = rear
+            cmd += ['remix', '1', '2', '3', '0', '4', '5']
         logging.debug(cmd)
         p2 = subprocess.Popen(cmd, stdin=p.stdout)
         p2.communicate()
