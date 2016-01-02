@@ -102,8 +102,8 @@ class coverart_processor:
         for picfile in self.picfiles:
             try:
                 output = unicode(subprocess.check_output(['identify','-format','%t\t%d/%f\t%m\t%w\t%h\n',picfile]))
-            except subprocess.CalledProcessError, e:
-                print e.output
+            except subprocess.CalledProcessError as e:
+                print(e.output)
             else:
                 lines = output.split('\n')
                 for line in lines:
@@ -169,7 +169,7 @@ class coverart_processor:
                 ypos = (height - length) / 2
             newlength = min(length, 720)
             cmd = ['convert'] + rotate + ['-extract', geometry(length,length,xpos,ypos),
-                  '-resize', geometry(newlength,newlength), pathname, cover]
+                  '-resize', geometry(newlength,newlength), '-strip', pathname, cover]
         subprocess.call(cmd)
 
         # Ensure reprocessing already processed folder gives identity
