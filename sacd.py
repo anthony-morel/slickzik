@@ -24,7 +24,9 @@ class sacdtranscoder:
             [name for name in os.listdir(directory)
                 if name.lower().endswith('.iso')])
         self.files = []
-        for isofile in files:
+        for f in files:
+            isofile = os.path.join(self.directory, f)
+            logging.debug(isofile)
             output = self._sacd_extract_info(isofile)
             match = re.findall(r'Speaker config: (\d) Channel', output, re.MULTILINE)
             if self._mch():
@@ -80,26 +82,14 @@ class sacdtranscoder:
         logging.debug(output)
         return output
 
-    def _sacd_extract(self, isofile):
-        # Extracts the sacd tracks into dff files
-        # This can take many minutes due to dst de-compression
-        tmpdir = tempfile.mkdtemp()
-        cmd = ['sacd_extract', '-i', os.path.realpath(isofile), '-p', '-c']
-        if self.args['t']:
-            cmd += ['-t',','.join(self.args['t'])]
-        if self._mch():
-            cmd += ['-m']
-        logging.debug(cmd)
-        output = subprocess.check_output(cmd, cwd=tmpdir)
-        logging.debug(output)
-        return tmpdir, output
-
-    def _transcode_one(self, f, outdir):
+    def _transcode_one(self, idx, dff, outdir):
+        self.metadata['tracknumber'] = '%02d' % idx
+        self.metadata['title'] = self.titles[idx - 1]
         outfile = get_filename(outdir, self.metadata)
         logging.info('Creating\t' + os.path.basename(outfile))
         # dff2raw <file.dff> | sox -t raw -e float -b 32 -r 2822400 -c 2 -
         # -b 24 <file.flac> rate -v 48000 gain 6 stats
-        cmd = ['dff2raw', f]
+        cmd = ['dff2raw', dff]
         if self.args['mix'] and self.channels >= 5:
             channels = 2
             cmd += ['-m'] + \
@@ -111,7 +101,9 @@ class sacdtranscoder:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         cmd = ['sox', '-t', 'raw', '-e', 'float', '-b', '32', '-r', '2822400',
                '-c', str(channels), '-', '-b', '24', outfile,
-               'rate', '-v', str(self.args['srate']), 'gain', str(self.args['gain'])]
+               'rate', '-v', str(self.args['srate'])]
+        if self.args['gain'] != 0:
+            cmd += ['gain', str(self.args['gain'])]
         # Don't generate flac with odd-channel count (ALSA no more supports)
         if self.channels == 5:
             # flac channel order: 1=L, 2=R, 3=C, 4=null LFE, 5/6 = rear
@@ -121,6 +113,8 @@ class sacdtranscoder:
         p2.communicate()
         logging.debug(self.metadata)
         set_meta(self.metadata, outfile)
+        # remove intermediary file created by sacd_extract
+        os.remove(dff)
 
     def transcode(self):
         self.outdir = []
@@ -128,26 +122,39 @@ class sacdtranscoder:
             isofile = os.path.join(self.directory, f)
             self._extract_metadata(isofile)
             # Convert to DFF using sacd_extract() and parse info from log
-            tmpdir, log = self._sacd_extract(isofile)
-            dffs = re.findall(r'Processing \[(.*)\]', log, re.MULTILINE)
-            logging.debug(dffs)
-            if dffs:
-                outdir = get_output_dir(
-                    self.args['rootdir'], self.metadata)
-                os.mkdir(outdir)
-                logging.info('To ' + outdir)
-                self.outdir.append(outdir)
-                for idx, f in enumerate(dffs):
-                    logging.debug('Processing\t' + f)
-                    dff = os.path.join(tmpdir, f)
-                    self.metadata['tracknumber'] = '%02d' % (idx + 1)
-                    self.metadata['title'] = self.titles[idx]
-                    self._transcode_one(dff, outdir)
-                    # remove intermediary file created by sacd_extract
-                    os.remove(dff)
-                # remove intermediary directory created by sacd_extract
-                os.rmdir(os.path.dirname(dff))
-                os.rmdir(tmpdir)
+            tmpdir = tempfile.mkdtemp()
+            cmd = ['nice', 'sacd_extract', '-i', os.path.realpath(isofile), '-p', '-c']
+            if self.args['t']:
+                cmd += ['-t',','.join(self.args['t'])]
+            if self._mch():
+                cmd += ['-m']
+            logging.debug(cmd)
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=tmpdir)
+            prev_dff = ''
+            idx = 0
+            # TODO Python3: for line in p.stdout:
+            for line in iter(p.stdout.readline, b''):
+                m = re.search(r'Processing \[(.*)\]', line)
+                if not m:
+                    continue
+                if not prev_dff:
+                    # Decoding started: create final output dir
+                    outdir = get_output_dir(self.args['rootdir'], self.metadata)
+                    os.mkdir(outdir)
+                    logging.info('To ' + outdir)
+                    self.outdir.append(outdir)
+                else:
+                    # Previous dff file is now complete
+                    dff = os.path.join(tmpdir, prev_dff)
+                    self._transcode_one(idx, dff, outdir)
+                prev_dff = m.group(1)
+                idx += 1
+            # Transcode final dff
+            dff = os.path.join(tmpdir, prev_dff)
+            self._transcode_one(idx, dff, outdir) 
+            # remove intermediary directory created by sacd_extract
+            os.rmdir(os.path.dirname(dff))
+            os.rmdir(tmpdir)
         return self.outdir
 
 if __name__ == '__main__':
