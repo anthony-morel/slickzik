@@ -39,7 +39,7 @@ def filter_cue(cuesheet):
     # and also workaround shnsplit parsing defects/limitations
     # sed -ni '/TRACK/p; /TITLE/p; /INDEX 01/p' "$CUEFILEUTF"
     matches = re.findall(
-        r'^(\s*(?:TRACK|TITLE|INDEX 01).*)$', cuesheet, flags=re.MULTILINE)
+        r'^(\s*(?:TRACK|PERFORMER|TITLE|INDEX 01).*)$', cuesheet, flags=re.MULTILINE)
     '''
     # Non integrated code to handle non-CD cue in shnsplit
     # shnsplit does not allow the use of frames in non-CD cue -> translate
