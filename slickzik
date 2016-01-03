@@ -118,7 +118,7 @@ if args['mix']:
     max_gain = max([args[k] for k in key if args[k] != 'off'])
     for k in key:
         if args[k] != 'off':
-            args[k] -= max_gain
+            args[k] = int(-args[k] + max_gain)
     args['gain'] += max_gain
 
 logging.debug('args=' + str(args))
