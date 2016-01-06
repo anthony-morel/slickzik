@@ -176,7 +176,6 @@ class coverart_processor:
         Artworkzip = find(self.directory, by_name(self.zipname+'.zip'))
         if Artworkzip:
             cmd = ['cp', Artworkzip[0], outdir]
-            pdffiles = []
         else:
             pdffiles = find(self.directory, by_ext('.pdf'))
         # Create a zip file will all pictures (ignore original path)
