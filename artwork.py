@@ -178,14 +178,15 @@ class coverart_processor:
             cmd = ['cp', Artworkzip[0], outdir]
         else:
             pdffiles = find(self.directory, by_ext('.pdf'))
-        # Create a zip file will all pictures (ignore original path)
-        # Blacklist some file names, as they are not artwork
-        query = "name NOT LIKE '" + "' AND name NOT LIKE '".join(self.blacklist) + "'"
-        query = query.replace('*','%')
-        logging.debug(query)
-        cur.execute('SELECT pathname FROM picts WHERE '+query+' ORDER BY pathname')
-        # TODO: prevent duplicate names
-        cmd = ['zip', '-j', outdir+'/'+self.zipname] + [pathname for pathname, in cur.fetchall()] + pdffiles
+            # Create a zip file will all pictures (ignore original path)
+            # Blacklist some file names, as they are not artwork
+            query = "name NOT LIKE '" + "' AND name NOT LIKE '".join(self.blacklist) + "'"
+            query = query.replace('*','%')
+            logging.debug(query)
+            cur.execute('SELECT pathname FROM picts WHERE '+query+' ORDER BY pathname')
+            # TODO: prevent duplicate names
+            cmd = ['zip', '-j', outdir+'/'+self.zipname] + [pathname for pathname, in cur.fetchall()] + pdffiles
+
         subprocess.call(cmd)
 
         db.close()
