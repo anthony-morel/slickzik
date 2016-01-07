@@ -71,7 +71,8 @@ class sacdtranscoder:
         logging.debug(area)
         self.channels = int(area[0])
         self.titles = re.findall(r'Title\[\d+\]:\s*(.*)', area, re.MULTILINE)
-        self.titles = dontshout('\n'.join(self.titles)).split('\n')
+        if self.titles:
+            self.titles = dontshout('\n'.join(self.titles)).split('\n')
         logging.debug(self.titles)
 
     def _sacd_extract_info(self, isofile):
@@ -84,7 +85,11 @@ class sacdtranscoder:
 
     def _transcode_one(self, idx, dff, outdir):
         self.metadata['tracknumber'] = '%02d' % idx
-        self.metadata['title'] = self.titles[idx - 1]
+        # May fail if SACD does not embedded title
+        try:
+            self.metadata['title'] = self.titles[idx - 1]
+        except:
+            self.metadata['title'] = 'Unknown Title'
         outfile = get_filename(outdir, self.metadata)
         logging.info('Creating\t' + os.path.basename(outfile))
         # dff2raw <file.dff> | sox -t raw -e float -b 32 -r 2822400 -c 2 -
