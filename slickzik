@@ -134,6 +134,8 @@ logging.debug('transcoder_list=' + str(transcoder_list))
 art = coverart_processor()
 
 for folder in args['folder']:
+    if not os.path.isdir(folder):
+        continue
     folder = os.path.realpath(folder)
     logging.debug('folder=' + folder)
     for t in transcoder_list:
