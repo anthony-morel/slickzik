@@ -67,7 +67,7 @@ class sacdtranscoder:
         # Get metadata corresponding to the requested area (stereo, mch)
         # as the number of tracks and their names may differ btw areas
         area = re.split(r'Speaker config: ', log, 0, re.MULTILINE)
-        area = area[2] if self._mch() else area[1]
+        area = area[-1] if self._mch() else area[1]
         logging.debug(area)
         self.channels = int(area[0])
         self.titles = re.findall(r'Title\[\d+\]:\s*(.*)', area, re.MULTILINE)
