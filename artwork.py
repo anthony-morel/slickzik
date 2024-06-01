@@ -101,7 +101,7 @@ class coverart_processor:
                     width INTEGER, height INTEGER, ratio FLOAT)''')
         for picfile in self.picfiles:
             try:
-                output = unicode(subprocess.check_output(['identify','-format','%t\t%d/%f\t%m\t%w\t%h\n',picfile]))
+                output = subprocess.check_output(['identify','-format','%t\t%d/%f\t%m\t%w\t%h\n',picfile]).decode('utf8')
             except subprocess.CalledProcessError as e:
                 print(e.output)
             else:
@@ -191,7 +191,7 @@ class coverart_processor:
 
         db.close()
         return cover
-    
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)

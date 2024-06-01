@@ -136,7 +136,7 @@ def get_flac_metadata(data):
 def get_meta(f):
     cmd = ['metaflac', '--show-channels', '--show-bps', '--show-sample-rate',
            '--export-tags-to=-', f]
-    metadata = get_flac_metadata(unicode(subprocess.check_output(cmd)))
+    metadata = get_flac_metadata(subprocess.check_output(cmd).decode('utf8'))
     return metadata
 
 

@@ -4,8 +4,6 @@ import logging
 import re
 import tempfile
 import sys
-reload(sys)
-sys.setdefaultencoding('utf8')
 from metautils import *
 
 
