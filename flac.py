@@ -16,6 +16,11 @@ def add_dsp_gain(dsp, gain):
 
 
 def reencode_with_dsp(flacfile, outfile, dsp):
+    # TODO: Detect DSD over PCM (where DSD is carried as ultrasound) as DSD
+    # will need to be transcoded to PCM first before any DSP is applied (any
+    # DSD over PCM processed as is would no longer play as DSD as detection
+    # needs a bit-perfect stream and would be turned into a fully silent track
+    # once ultrasounds are filtered)
     cmd = ['sox', '-G', flacfile, '-C', '8', outfile] + dsp
     logging.debug(cmd)
     subprocess.call(cmd)
