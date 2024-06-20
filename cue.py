@@ -8,7 +8,7 @@ from metautils import *
 
 
 def convert_to_flac(sndfile, flacfile):
-    cmd = ['avconv', '-v', 'quiet', '-y', '-i', sndfile, flacfile]
+    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', sndfile, flacfile]
     subprocess.check_call(cmd)
 
 

@@ -41,10 +41,11 @@ Uses the following commands:
 * External
   * flac and metaflac
   * shnsplit (part of shntools package)
-  * avconv
+  * ffmpeg
   * sox
 * From this repo
   * dff2raw - front-end for sox to handle dff files
+  * dop2raw - front-end for sox to handle DSD over PCM files
 
 BUILDING / INSTALLING
 =====================
