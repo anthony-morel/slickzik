@@ -68,9 +68,9 @@ def cuesplit(sndfile, outdir, cuesheet, metadata):
            os.path.realpath(sndfile)]
     p = subprocess.Popen(
         cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, cwd=outdir)
-    output = p.communicate(input=cuedata)
+    output = p.communicate(input=cuedata.encode())
     # TODO: have a pipeline instead to access flac files as they are created
-    flacfiles = re.findall(r'--> \[(.*.flac)\].* : OK', output[1])
+    flacfiles = re.findall(r'--> \[(.*.flac)\].* : OK', output[1].decode())
     logging.debug(flacfiles)
     if not flacfiles:
         logging.error('Unexpected result splitting CUE file')
@@ -111,8 +111,8 @@ class cuetranscoder:
         cuepairs = []
         # Read all the cue sheet
         for cuefile in cuefiles:
-            with open(os.path.join(self.directory, cuefile), 'r') as f:
-                cuesheet = f.read().decode(self.args['cuecharset'])
+            with open(os.path.join(self.directory, cuefile), 'r', encoding=self.args['cuecharset']) as f:
+                cuesheet = f.read()
                 # Only retain cue sheets that point to exactly one file
                 matches = re.findall(
                     r'^FILE\s*"([^"]*)"', cuesheet, re.MULTILINE)
@@ -150,8 +150,8 @@ class cuetranscoder:
         for sndfile, cuefile in self.files:
             logging.info('Processing\t' + sndfile)
             logging.info('CUE sheet\t' + cuefile)
-            with open(os.path.join(self.directory, cuefile), 'r') as f:
-                cuesheet = f.read().decode(self.args['cuecharset'])
+            with open(os.path.join(self.directory, cuefile), 'r', encoding=self.args['cuecharset']) as f:
+                cuesheet = f.read()
             metadata = get_cue_metadata(cuesheet)
             outdir = get_output_dir(self.args['rootdir'], metadata)
             os.mkdir(outdir)
