@@ -106,7 +106,8 @@ class sacdtranscoder:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         cmd = ['sox', '-t', 'raw', '-e', 'float', '-b', '32', '-r', '2822400',
                '-c', str(channels), '-', '-b', '24', outfile,
-               'rate', '-v', str(self.args['srate'])]
+               'rate', '-v', str(self.args['srate']),
+               'fade', '0.001']
         if self.args['gain'] != 0:
             cmd += ['gain', str(self.args['gain'])]
         # Don't generate flac with odd-channel count (ALSA no more supports)
