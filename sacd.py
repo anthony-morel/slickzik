@@ -79,7 +79,7 @@ class sacdtranscoder:
         # Extracts sacd area info
         cmd = ['sacd_extract', '-i', os.path.realpath(isofile), '-P']
         logging.debug(cmd)
-        output = subprocess.check_output(cmd)
+        output = subprocess.check_output(cmd).decode()
         logging.debug(output)
         return output
 
@@ -137,9 +137,8 @@ class sacdtranscoder:
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=tmpdir)
             prev_dff = ''
             idx = 0
-            # TODO Python3: for line in p.stdout:
-            for line in iter(p.stdout.readline, b''):
-                m = re.search(r'Processing \[(.*)\]', line)
+            for line in p.stdout:
+                m = re.search(r'Processing \[(.*)\]', line.decode())
                 if not m:
                     continue
                 if not prev_dff:
@@ -156,7 +155,7 @@ class sacdtranscoder:
                 idx += 1
             # Transcode final dff
             dff = os.path.join(tmpdir, prev_dff)
-            self._transcode_one(idx, dff, outdir) 
+            self._transcode_one(idx, dff, outdir)
             # remove intermediary directory created by sacd_extract
             os.rmdir(os.path.dirname(dff))
             os.rmdir(tmpdir)
