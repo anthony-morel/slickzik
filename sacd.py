@@ -90,6 +90,9 @@ class sacdtranscoder:
             self.metadata['title'] = self.titles[idx - 1]
         except:
             self.metadata['title'] = 'Unknown Title'
+        else:
+            # Remove all spurious spaces
+            self.metadata['title'] = ' '.join(self.metadata['title'].split())
         outfile = get_filename(outdir, self.metadata)
         logging.info('Creating\t' + os.path.basename(outfile))
         # dff2raw <file.dff> | sox -t raw -e float -b 32 -r 2822400 -c 2 -
